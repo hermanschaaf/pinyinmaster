@@ -52,14 +52,14 @@ define [
       @drawScores(@scoreLayer)
 
       @cardsLayer = new K.Layer()
-      #@drawCards(@cardsLayer)
+      @drawCards(@cardsLayer)
 
-      @activeLayer = new K.Layer()
-      @drawActiveCard(@activeLayer)
+      #@activeLayer = new K.Layer()
+      @drawActiveCard(@cardsLayer)
 
       @stage.add(@scoreLayer)
       @stage.add(@cardsLayer)
-      @stage.add(@activeLayer)
+      #@stage.add(@activeLayer)
 
     drawScores: (layer) ->
       score = new K.Text
@@ -74,23 +74,48 @@ define [
         padding: 5
       layer.add(score)
 
-    getCard: ({name, draggable}) ->
+    getCard: ({name, draggable, word}) ->
       draggable ?= false
+      word ?= words[parseInt(Math.floor(Math.random() * words.length))]
 
-      card = tools.createRect
+      console.log word, draggable
+
+      card = new K.Group(
+        draggable: draggable
+      ) 
+
+      randX = Math.random()
+      randY = Math.random()
+
+      paper = tools.createRect
         stage: @stage
-        top: 0.2 + Math.random() * 0.05
-        left: 0.5 + Math.random() * 0.05
+        top: 0.2 + randY * 0.05
+        left: 0.5 + randX * 0.05
         width: 0.8
         marginLeft: -0.5
         marginTop: 0.0
         height: 'square'
         name: name
-        draggable: draggable
         fill: '#f2f2ea'
         stroke: 'none'
         strokeWidth: 0
-      tools.addShadow(card)
+      tools.addShadow(paper)
+
+      char = new K.Text
+        y: (0.2 + randY * 0.05) * @w
+        x: (0.5 + randX * 0.05) * @w - (0.3 * @w)
+        text: word.char
+        fontSize: 0.6 * @w
+        fontFamily: 'arial'
+        fill: 'black'
+        align: 'center'
+        width: 0.6 * @w
+        padding: @w * 0.1
+
+      card.add(paper)
+      card.add(char)
+      card.setSize(paper.getSize())
+
       return card
 
     drawCards: (layer) ->
@@ -115,7 +140,7 @@ define [
           y: @activeCard.getY()
         if @dragPositions.length > 3
           @dragPositions.slice(0,1)
-      , 50
+      , 30
 
     endDrag: ->
       clearInterval(@dragInterval)
@@ -144,16 +169,82 @@ define [
       # extrapolate the speed and flick the card off the screen
       # if the speed is over a certain threshold
 
-      if Math.abs(xVel) > 0.2
+      xFriction = 0.20 # final velocity as percentage of screen dimestions
+      yFriction = 0.20
+
+      overThresholdX = 0
+      overThresholdY = 0
+
+      if Math.abs(xVel) > 0.05
         console.log "flick off X, motherflicker!"
+        overThresholdX = 1
         
-      if Math.abs(yVel) > 0.2
+      if Math.abs(yVel) > 0.05
         console.log "flick off Y, motherflicker!"
-        
+        overThresholdY = 1 
+
+      console.log 'xvel', xVel, overThresholdX, overThresholdY
+
+      if overThresholdY or overThresholdX
+        # anim = new K.Animation( {
+        #   func: (frame) =>
+        #     #console.log xVel
+        #     console.log 'frametime', frame.time
+        #     xVel = (xVel + (xVel * xFriction)) * overThresholdX
+        #     yVel = (yVel + (yVel * yFriction)) * overThresholdY
+        #     console.log 'xvel', xVel, 'yvel', yVel
+        #     @activeCard.setX(@activeCard.getX() + xVel * @w * 0.01 )
+        #     @activeCard.setY(@activeCard.getY() + yVel * @h * 0.01)
+        # ,
+        # node: @activeLayer
+        # )
+
+        # anim.start();
+
+        @activeCard.transitionTo
+          x: @activeCard.getX() + (xVel / Math.abs(xVel) * @w) * overThresholdX
+          y: @activeCard.getY() + (yVel / Math.abs(yVel) * @h) * overThresholdY
+          duration: 0.2
+          easing: 'ease-out'
+
+        setTimeout =>
+          @drawActiveCard(@cardsLayer)
+        , 0.1
+
+        # @animStopInterval = undefined
+        # @animStopInterval = setInterval ((card, interval, w, h, game) ->
+        #   return =>
+        #     console.log card.getX(), card.getY(), card.getWidth(), card.getHeight(), card.getSize()
+        #     stop = false
+        #     if card.getX() + card.getWidth() < 0
+        #       console.log "x over left"
+        #       stop = true
+        #     else if card.getX() > w
+        #       stop = true
+        #       console.log "x over right"
+        #     else if card.getY() > h
+        #       stop = true
+        #       console.log "y over bottom"
+        #     else if card.getY() + card.getHeight() < 0
+        #       stop = true
+        #       console.log "y over top"
+
+        #     if stop
+        #       console.log "STOPPING!", interval, game
+        #       anim.stop()
+        #       clearInterval(game.animStopInterval)
+        #       game.drawActiveCard(game.cardsLayer)
+
+        #   )(@activeCard, @animStopInterval, @w, @h, @)
+        # , 30
+
 
     drawActiveCard: (layer) ->
-      @activeCard = @getCard({draggable: true})
+      #@activeCard = @getCard({draggable: true})
+      #card = @activeCard
+      @activeCard = @cards.pop()
       card = @activeCard
+      card.setDraggable true
 
       console.log "ACTIVE CARD IS", card
       card.on 'dragstart', =>
@@ -161,7 +252,7 @@ define [
       card.on 'dragend', =>
         @endDrag()
 
-      layer.add(card)
+      #layer.add(@)
 
 
 

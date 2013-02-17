@@ -49,11 +49,10 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       this.scoreLayer = new K.Layer();
       this.drawScores(this.scoreLayer);
       this.cardsLayer = new K.Layer();
-      this.activeLayer = new K.Layer();
-      this.drawActiveCard(this.activeLayer);
+      this.drawCards(this.cardsLayer);
+      this.drawActiveCard(this.cardsLayer);
       this.stage.add(this.scoreLayer);
       this.stage.add(this.cardsLayer);
-      this.stage.add(this.activeLayer);
     }
 
     PlayLevel.prototype.drawScores = function(layer) {
@@ -73,26 +72,48 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
     };
 
     PlayLevel.prototype.getCard = function(_arg) {
-      var card, draggable, name;
-      name = _arg.name, draggable = _arg.draggable;
+      var card, char, draggable, name, paper, randX, randY, word;
+      name = _arg.name, draggable = _arg.draggable, word = _arg.word;
       if (draggable == null) {
         draggable = false;
       }
-      card = tools.createRect({
+      if (word == null) {
+        word = words[parseInt(Math.floor(Math.random() * words.length))];
+      }
+      console.log(word, draggable);
+      card = new K.Group({
+        draggable: draggable
+      });
+      randX = Math.random();
+      randY = Math.random();
+      paper = tools.createRect({
         stage: this.stage,
-        top: 0.2 + Math.random() * 0.05,
-        left: 0.5 + Math.random() * 0.05,
+        top: 0.2 + randY * 0.05,
+        left: 0.5 + randX * 0.05,
         width: 0.8,
         marginLeft: -0.5,
         marginTop: 0.0,
         height: 'square',
         name: name,
-        draggable: draggable,
         fill: '#f2f2ea',
         stroke: 'none',
         strokeWidth: 0
       });
-      tools.addShadow(card);
+      tools.addShadow(paper);
+      char = new K.Text({
+        y: (0.2 + randY * 0.05) * this.w,
+        x: (0.5 + randX * 0.05) * this.w - (0.3 * this.w),
+        text: word.char,
+        fontSize: 0.6 * this.w,
+        fontFamily: 'arial',
+        fill: 'black',
+        align: 'center',
+        width: 0.6 * this.w,
+        padding: this.w * 0.1
+      });
+      card.add(paper);
+      card.add(char);
+      card.setSize(paper.getSize());
       return card;
     };
 
@@ -129,11 +150,12 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
         if (_this.dragPositions.length > 3) {
           return _this.dragPositions.slice(0, 1);
         }
-      }, 50);
+      }, 30);
     };
 
     PlayLevel.prototype.endDrag = function() {
-      var dragEndPos, dragEndTime, numPositions, xVel, yVel;
+      var dragEndPos, dragEndTime, numPositions, overThresholdX, overThresholdY, xFriction, xVel, yFriction, yVel,
+        _this = this;
       clearInterval(this.dragInterval);
       dragEndTime = (new Date()).getTime();
       dragEndPos = {
@@ -153,29 +175,45 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       xVel = xVel / this.w;
       yVel = yVel / this.h;
       console.log(xVel, yVel);
-      if (Math.abs(xVel) > 0.2) {
+      xFriction = 0.20;
+      yFriction = 0.20;
+      overThresholdX = 0;
+      overThresholdY = 0;
+      if (Math.abs(xVel) > 0.05) {
         console.log("flick off X, motherflicker!");
+        overThresholdX = 1;
       }
-      if (Math.abs(yVel) > 0.2) {
-        return console.log("flick off Y, motherflicker!");
+      if (Math.abs(yVel) > 0.05) {
+        console.log("flick off Y, motherflicker!");
+        overThresholdY = 1;
+      }
+      console.log('xvel', xVel, overThresholdX, overThresholdY);
+      if (overThresholdY || overThresholdX) {
+        this.activeCard.transitionTo({
+          x: this.activeCard.getX() + (xVel / Math.abs(xVel) * this.w) * overThresholdX,
+          y: this.activeCard.getY() + (yVel / Math.abs(yVel) * this.h) * overThresholdY,
+          duration: 0.2,
+          easing: 'ease-out'
+        });
+        return setTimeout(function() {
+          return _this.drawActiveCard(_this.cardsLayer);
+        }, 0.1);
       }
     };
 
     PlayLevel.prototype.drawActiveCard = function(layer) {
       var card,
         _this = this;
-      this.activeCard = this.getCard({
-        draggable: true
-      });
+      this.activeCard = this.cards.pop();
       card = this.activeCard;
+      card.setDraggable(true);
       console.log("ACTIVE CARD IS", card);
       card.on('dragstart', function() {
         return _this.startDrag();
       });
-      card.on('dragend', function() {
+      return card.on('dragend', function() {
         return _this.endDrag();
       });
-      return layer.add(card);
     };
 
     return PlayLevel;
