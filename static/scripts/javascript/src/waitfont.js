@@ -52,3 +52,4 @@ function waitForWebfonts(fonts, callback) {
         })(fonts[i]);
     }
 };
+window.waitForWebfonts = waitForWebfonts

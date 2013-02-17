@@ -1,18 +1,17 @@
 define [
     'jquery'
     'kinetic'
-    'game'
-], ($, K, game) ->
-
-  h = game.height
-  w = game.width
-  layer = game.layer
+], ($, K) ->
 
   return {
-    createImage: ({name, src, top, left, width, height, marginLeft, marginTop}) -> 
+    createImage: ({stage, name, src, top, left, width, height, marginLeft, marginTop, callback}) -> 
       # src: path or url to image
       # top: decimal between 0.0 and 1.0 (0% - 100%)
       # left, width, height: same as `top`
+
+      h = stage.getHeight()
+      w = stage.getWidth()
+
       top ?= 0.0
       left ?= 0.0
       width ?= 1.0
@@ -21,7 +20,7 @@ define [
       marginTop ?= 0.0
 
       imageObj = new Image()
-      imageObj.onload = ->
+      imageObj.onload = =>
 
         scalingFactorW = Math.min(1.0, w * width / imageObj.width)
         scalingFactorH = Math.min(1.0, w * height / imageObj.height)
@@ -35,13 +34,12 @@ define [
           image: imageObj
           name: name
 
-        # add the shape to the layer
-        layer.add(img)
-        layer.draw()
-
+        callback(img)
+        
       imageObj.src = src
 
-    , createRect: ({name, top, left, width, height, marginLeft, marginTop, fill, stroke, strokeWidth}) -> 
+
+    , createRect: ({stage, name, top, left, width, height, marginLeft, marginTop, fill, stroke, strokeWidth}) -> 
       top ?= 0.0
       left ?= 0.0
       width ?= 1.0
@@ -49,17 +47,36 @@ define [
       marginLeft ?= 0.0
       marginTop ?= 0.0
 
+      h = stage.getHeight()
+      w = stage.getWidth()
+
       scalingFactor = 1.0
 
+      width = if width <= 1.0 then w * width else width
+      if height == 'square'
+        height = width
+      else
+        height = if height <= 1.0 then h * height else height
+
       rect = new K.Rect
-        x: w * left + w * width * scalingFactor * marginLeft
-        y: h * top + h * height * scalingFactor * marginTop
-        width: if width <= 1.0 then w * width else width
-        height: if height <= 1.0 then h * height else height 
+        x: w * left + width * marginLeft
+        y: h * top + height * marginTop
+        width: width
+        height: height
         name: name
         stroke: stroke
         strokeWidth: strokeWidth
         fill: fill
 
+      console.log rect.attrs.x
+
       return rect
+    ,
+
+    addShadow: (el) ->
+      el.setShadowBlur(50)
+      el.setShadowColor('black')
+      el.setShadowOffset([0, 0])
+      el.setShadowOpacity(1.0)
+      el.enableShadow()
   }

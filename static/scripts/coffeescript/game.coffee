@@ -1,8 +1,12 @@
+console.log "WTF"
 
 define [
     'jquery'
     'kinetic'
-], ($, K) ->
+    'levels'
+    'menus'
+    'play'
+], ($, K, LevelsPage, FrontPage, PlayLevel) ->
 
   class Game
 
@@ -20,9 +24,40 @@ define [
 
       # add the layer to the stage
       @stage.add(@layer)
-      @layer.draw()
+
+      # event listeners:
+
+      $(document).bind "request-levels-menu", =>
+        @showLevels({})
+
+      $(document).bind "request-level-start", (e, level) =>
+        console.log 'clicked and level is', level
+        @startLevel({})
 
 
-  game = new Game('container')
+    
 
-  return game
+    startGame: ()->
+      # first we draw the menus
+      console.log 'starting game!'
+
+      frontpage = new FrontPage(@, @stage, @layer)
+
+
+    showLevels: ({page}) ->
+      console.log 'showing levels'
+      page ?= 0
+
+      @stage.removeChildren()
+      @menuLayer = new K.Layer()
+      @stage.add(@menuLayer)
+      levelsPage = new LevelsPage(@, @menuLayer)
+
+    startLevel: (level)->
+      # first we draw the menus
+      console.log 'starting level! ' + level
+
+      level = new PlayLevel(@, @stage, @layer)
+
+
+  return Game

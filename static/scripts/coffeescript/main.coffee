@@ -1,9 +1,17 @@
 require [
     "jquery", 
-    "waitfont",
     "game", 
+    "orientation",
+    "waitfont",
     "menus",
     "kinetic",
-    "orientation", 
-  ], ($, Game) ->
-  $ ->
+     
+  ], ($, Game, fixOrientation) ->
+    $ ->
+      waitForWebfonts ['karatemedium'], ->
+        console.log "fonts loaded whoop whoop"
+        game = new Game('container')
+        console.log "launching game..."
+        game.startGame()
+
+        fixOrientation(game)

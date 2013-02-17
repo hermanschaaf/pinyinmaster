@@ -34,7 +34,7 @@ body,html
   overflow: auto;
 }
 
-#container canvas {
+#container {
   background: black url(#{$images}/background.png) repeat-y 0 0;
   background-size: 100%;
 }
