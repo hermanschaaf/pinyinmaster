@@ -45,8 +45,8 @@ define(['jquery', 'kinetic'], function($, K) {
       return imageObj.src = src;
     },
     createRect: function(_arg) {
-      var fill, h, height, left, marginLeft, marginTop, name, rect, scalingFactor, stage, stroke, strokeWidth, top, w, width;
-      stage = _arg.stage, name = _arg.name, top = _arg.top, left = _arg.left, width = _arg.width, height = _arg.height, marginLeft = _arg.marginLeft, marginTop = _arg.marginTop, fill = _arg.fill, stroke = _arg.stroke, strokeWidth = _arg.strokeWidth;
+      var draggable, fill, h, height, left, marginLeft, marginTop, name, rect, scalingFactor, stage, stroke, strokeWidth, top, w, width;
+      stage = _arg.stage, name = _arg.name, top = _arg.top, left = _arg.left, width = _arg.width, height = _arg.height, marginLeft = _arg.marginLeft, marginTop = _arg.marginTop, fill = _arg.fill, stroke = _arg.stroke, strokeWidth = _arg.strokeWidth, draggable = _arg.draggable;
       if (top == null) {
         top = 0.0;
       }
@@ -65,6 +65,9 @@ define(['jquery', 'kinetic'], function($, K) {
       if (marginTop == null) {
         marginTop = 0.0;
       }
+      if (draggable == null) {
+        draggable = false;
+      }
       h = stage.getHeight();
       w = stage.getWidth();
       scalingFactor = 1.0;
@@ -82,7 +85,8 @@ define(['jquery', 'kinetic'], function($, K) {
         name: name,
         stroke: stroke,
         strokeWidth: strokeWidth,
-        fill: fill
+        fill: fill,
+        draggable: draggable
       });
       console.log(rect.attrs.x);
       return rect;

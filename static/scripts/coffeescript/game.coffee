@@ -56,8 +56,10 @@ define [
     startLevel: (level)->
       # first we draw the menus
       console.log 'starting level! ' + level
+      @stage.removeChildren()
+      @gameLayer = new K.Layer()
 
-      level = new PlayLevel(@, @stage, @layer)
+      level = new PlayLevel(@, @gameLayer, level)
 
 
   return Game

@@ -113,7 +113,13 @@ define [
               return ->
                 $.event.trigger("request-level-start", [level])
             )(i)
+
+            btn.on 'mouseover', ->
+              document.body.style.cursor = 'pointer';
             
+            btn.on 'mouseout', ->
+              document.body.style.cursor = 'default';
+
             levelsLayer.add(btn)
 
       levelsLayer.draw()

@@ -49,7 +49,9 @@ define(['jquery', 'kinetic', 'levels', 'menus', 'play'], function($, K, LevelsPa
 
     Game.prototype.startLevel = function(level) {
       console.log('starting level! ' + level);
-      return level = new PlayLevel(this, this.stage, this.layer);
+      this.stage.removeChildren();
+      this.gameLayer = new K.Layer();
+      return level = new PlayLevel(this, this.gameLayer, level);
     };
 
     return Game;

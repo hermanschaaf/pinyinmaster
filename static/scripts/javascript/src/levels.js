@@ -101,6 +101,12 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
                 return $.event.trigger("request-level-start", [level]);
               };
             })(i));
+            btn.on('mouseover', function() {
+              return document.body.style.cursor = 'pointer';
+            });
+            btn.on('mouseout', function() {
+              return document.body.style.cursor = 'default';
+            });
             levelsLayer.add(btn);
           }
         }

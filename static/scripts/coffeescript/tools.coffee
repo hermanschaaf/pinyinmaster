@@ -39,13 +39,14 @@ define [
       imageObj.src = src
 
 
-    , createRect: ({stage, name, top, left, width, height, marginLeft, marginTop, fill, stroke, strokeWidth}) -> 
+    , createRect: ({stage, name, top, left, width, height, marginLeft, marginTop, fill, stroke, strokeWidth, draggable}) -> 
       top ?= 0.0
       left ?= 0.0
       width ?= 1.0
       height ?= 1.0
       marginLeft ?= 0.0
       marginTop ?= 0.0
+      draggable ?= false
 
       h = stage.getHeight()
       w = stage.getWidth()
@@ -67,6 +68,7 @@ define [
         stroke: stroke
         strokeWidth: strokeWidth
         fill: fill
+        draggable: draggable
 
       console.log rect.attrs.x
 
