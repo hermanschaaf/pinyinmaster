@@ -43,13 +43,21 @@ define [
       baseLayer = @layer
       @stage = @game.stage
 
+      @grayText = '#454545'
+      @blackText = '#000000'
+
       console.log "stage is", @stage
+
+      @playing = true
+      @score = 1
+      @combo = 1
 
       @w = @stage.getWidth()
       @h = @stage.getHeight()
 
       @scoreLayer = new K.Layer()
       @drawScores(@scoreLayer)
+      @drawTones(@scoreLayer)
 
       @cardsLayer = new K.Layer()
       @drawCards(@cardsLayer)
@@ -62,10 +70,11 @@ define [
       #@stage.add(@activeLayer)
 
     drawScores: (layer) ->
+      layer.removeChildren()
       score = new K.Text
         x: @w * 0.05
         y: @h * 0.05
-        text: '1,000'
+        text: @score
         fontSize: @h * 0.1
         fontFamily: 'karatemedium'
         fill: 'white'
@@ -73,6 +82,10 @@ define [
         width: @w * 0.5
         padding: 5
       layer.add(score)
+      layer.draw()
+
+    drawTones: (layer) ->
+      console.log "draw tones"
 
     getCard: ({name, draggable, word}) ->
       draggable ?= false
@@ -87,12 +100,18 @@ define [
       randX = Math.random()
       randY = Math.random()
 
+      top = 0.2 + randY * 0.05
+      center = 0.5 + randX * 0.05
+      width = 0.8
+      height = 0.8
+      left = center - width * 0.5
+
       paper = tools.createRect
         stage: @stage
-        top: 0.2 + randY * 0.05
-        left: 0.5 + randX * 0.05
-        width: 0.8
-        marginLeft: -0.5
+        top: top
+        left: left
+        width: width
+        marginLeft: 0
         marginTop: 0.0
         height: 'square'
         name: name
@@ -102,18 +121,57 @@ define [
       tools.addShadow(paper)
 
       char = new K.Text
-        y: (0.2 + randY * 0.05) * @w
-        x: (0.5 + randX * 0.05) * @w - (0.3 * @w)
+        y: top * @h + 0.15 * width * @w
+        x: center * @w - (0.3 * @w)
         text: word.char
-        fontSize: 0.6 * @w
+        fontSize: 0.75 * width * @w # 3/4 of card
         fontFamily: 'arial'
-        fill: 'black'
+        fill: @blackText
+        align: 'center'
+        width: 0.75 * width * @w  # 3/4 of card width
+        padding:  0 # 0.25 * width * @w # 25 % of card
+
+      console.log 'no padding 3'
+
+      ascii = new K.Text
+        y: top * @h + 0.82 * width * @w
+        x: (0.5 + randX * 0.05) * @w - (0.3 * @w)
+        text: word.ascii
+        fontSize: 0.15 * width * @w
+        fontFamily: 'arial'
+        fill: @grayText
         align: 'center'
         width: 0.6 * @w
-        padding: @w * 0.1
+        padding: 0
 
+      def = new K.Text
+        y: top * @h
+        x: left * @w
+        text: word.def
+        fontSize: Math.max(10, 0.04 * width * @w)
+        fontFamily: 'arial'
+        fill: @grayText
+        align: 'left'
+        width: 0.5 * width * @w
+        padding: 0.05 * width * @w
+
+      fullWord = new K.Text
+        y: top * @h
+        x: center * @w
+        text: word.char
+        fontSize: 0.08 * width * @w
+        fontFamily: 'arial'
+        fill: @grayText
+        align: 'right'
+        width: 0.5 * width * @w
+        padding: 0.05 * width * @w
+
+      card.word = word
       card.add(paper)
       card.add(char)
+      card.add(ascii)
+      card.add(def)
+      card.add(fullWord)
       card.setSize(paper.getSize())
 
       return card
@@ -140,7 +198,7 @@ define [
           y: @activeCard.getY()
         if @dragPositions.length > 3
           @dragPositions.slice(0,1)
-      , 30
+      , 50
 
     endDrag: ->
       clearInterval(@dragInterval)
@@ -175,69 +233,159 @@ define [
       overThresholdX = 0
       overThresholdY = 0
 
-      if Math.abs(xVel) > 0.05
+      if Math.abs(xVel) > 0.1
         console.log "flick off X, motherflicker!"
         overThresholdX = 1
         
-      if Math.abs(yVel) > 0.05
+      if Math.abs(yVel) > 0.1
         console.log "flick off Y, motherflicker!"
         overThresholdY = 1 
 
-      console.log 'xvel', xVel, overThresholdX, overThresholdY
-
       if overThresholdY or overThresholdX
-        # anim = new K.Animation( {
-        #   func: (frame) =>
-        #     #console.log xVel
-        #     console.log 'frametime', frame.time
-        #     xVel = (xVel + (xVel * xFriction)) * overThresholdX
-        #     yVel = (yVel + (yVel * yFriction)) * overThresholdY
-        #     console.log 'xvel', xVel, 'yvel', yVel
-        #     @activeCard.setX(@activeCard.getX() + xVel * @w * 0.01 )
-        #     @activeCard.setY(@activeCard.getY() + yVel * @h * 0.01)
-        # ,
-        # node: @activeLayer
-        # )
-
-        # anim.start();
-
+        finalXPos = xVel * 3
+        finalYPos = yVel * 3
+        finalXPos = if finalXPos < 2.0 and finalXPos > 0.0 then 2.0 else if finalXPos > -2.0 and finalXPos < 0.0 then -2.0 else finalXPos
+        finalYPos = if finalYPos < 2.0 and finalYPos > 0.0 then 2.0 else if finalYPos > -2.0 and finalYPos < 0.0 then -2.0 else finalYPos
         @activeCard.transitionTo
-          x: @activeCard.getX() + (xVel / Math.abs(xVel) * @w) * overThresholdX
-          y: @activeCard.getY() + (yVel / Math.abs(yVel) * @h) * overThresholdY
+          x: @activeCard.getX() + (finalXPos * @w ) * overThresholdX
+          y: @activeCard.getY() + (finalYPos * @h ) * overThresholdY
           duration: 0.2
-          easing: 'ease-out'
+          easing: 'ease-in-out'
+
+        # to calculate the answer, we need to calculate
+        # the intersection of the center of the card with
+        # the corners of the screen on its way out. Fun!
+
+        # get the center of the card
+        c = 
+          x: @activeCard.getX() + @activeCard.getWidth() / 2
+          y: @activeCard.getY() + @activeCard.getHeight() / 2
+
+        # velocity shortcut
+        v = 
+          x: xVel
+          y: yVel
+
+        # so at time t, center of card is at:
+        # x(t) = c.x + v.x * t
+        # y(t) = c.y + v.y * t
+
+        # we want to know whether t is positive or negative
+        # at the time of crossing certain boundaries
+        # -> this will tell us whether it will or will not cross, 
+        # respectively
+
+        # so:
+        # t = (x - c.x) / v.x
+        # t = (y - c.y) / v.y
+
+        # check intersection with top line (when y = 0):
+        console.log c.y, v.y
+        topTime = if v.y != 0 then (0 - c.y) / v.y else -1
+        #exitTop = topTime >= 0 and topTime <= 200
+        console.log "Top Time is", topTime
+
+        bottomTime = if v.y != 0 then (@h - c.y) / v.y else -1
+        #exitBottom = bottomTime >= 0 and bottomTime <= 200
+        console.log "Bottom Time is", bottomTime
+
+        leftTime = if v.x != 0 then (0 - c.x) / v.x else -1
+        #exitLeft = leftTime >= 0 and leftTime <= 200
+
+        rightTime = if v.x != 0 then (-@w - c.x) / v.x else -1
+        #exitRight = rightTime >= 0 and rightTime <= 200
+
+        console.log "topTime", topTime, "bottomTime", bottomTime
+
+        ans = '0'
+
+        if v.y < 0
+          # top
+          if Math.abs(v.x) > Math.abs(v.y)
+            # left or right
+            if v.x < 0
+              console.log "LEFT!"
+              ans = '4'
+            else
+              console.log "RIGHT!"
+              ans = '2'
+          else
+            console.log "TOP!"
+            ans = '1'
+        else
+          # bottom
+          if Math.abs(v.x) > Math.abs(v.y)
+            # left or right
+            if v.x < 0
+              console.log "LEFT!"
+              ans = '4'
+            else
+              console.log "RIGHT!"
+              ans = '2'
+          else
+            console.log "BOTTOM!"
+            ans = '3'
+
+
+        # if topTime > 0.0 or Math.abs(topTime) < Math.abs(bottomTime)
+          
+        #   if leftTime > 0.0 or Math.abs(leftTime) < Math.abs(rightTime)
+
+        #     if topTime < leftTime
+        #       console.log "exit top!!!"
+        #       ans = '1'
+        #     else
+        #       console.log "exit left!!!"
+        #       ans = '4'
+
+        #   else if rightTime > 0.0 or Math.abs(rightTime) < Math.abs(leftTime)
+            
+        #     if topTime < rightTime
+        #       console.log "exit top!!!"
+        #       ans = '1'
+        #     else
+        #       console.log "exit right!!!"
+        #       ans = '2'
+
+        # else if bottomTime > 0.0 or Math.abs(bottomTime) < Math.abs(topTime)
+
+        #   if leftTime > 0.0 or Math.abs(leftTime) < Math.abs(rightTime)
+
+        #     if bottomTime < leftTime
+        #       console.log "exit bottom!!!"
+        #       ans = '3'
+        #     else
+        #       console.log "exit left!!!"
+        #       ans = '4'
+
+        #   else if rightTime > 0.0 or Math.abs(rightTime) < Math.abs(leftTime)
+
+        #     if bottomTime < rightTime
+        #       console.log "exit bottom!!!"
+        #       ans = '3'
+        #     else
+        #       console.log "exit right!!!"
+        #       ans = '2'
+        # else
+        #   console.log "GAP!"
+
+        @checkAnswer(ans, @activeCard.word)
 
         setTimeout =>
           @drawActiveCard(@cardsLayer)
         , 0.1
 
-        # @animStopInterval = undefined
-        # @animStopInterval = setInterval ((card, interval, w, h, game) ->
-        #   return =>
-        #     console.log card.getX(), card.getY(), card.getWidth(), card.getHeight(), card.getSize()
-        #     stop = false
-        #     if card.getX() + card.getWidth() < 0
-        #       console.log "x over left"
-        #       stop = true
-        #     else if card.getX() > w
-        #       stop = true
-        #       console.log "x over right"
-        #     else if card.getY() > h
-        #       stop = true
-        #       console.log "y over bottom"
-        #     else if card.getY() + card.getHeight() < 0
-        #       stop = true
-        #       console.log "y over top"
 
-        #     if stop
-        #       console.log "STOPPING!", interval, game
-        #       anim.stop()
-        #       clearInterval(game.animStopInterval)
-        #       game.drawActiveCard(game.cardsLayer)
-
-        #   )(@activeCard, @animStopInterval, @w, @h, @)
-        # , 30
-
+    checkAnswer: (tone, word) ->
+      console.log "checkAnswer", tone, word.ans
+      if tone == word.ans.charAt(0)
+        @score += 1 * parseInt(Math.max(@combo / 2, 1))
+        @combo += 1
+        console.log "JIAYOU!!!!"
+        @drawScores(@scoreLayer)
+        console.log @score
+      else
+        @combo = 1
 
     drawActiveCard: (layer) ->
       #@activeCard = @getCard({draggable: true})
@@ -249,8 +397,10 @@ define [
       console.log "ACTIVE CARD IS", card
       card.on 'dragstart', =>
         @startDrag()
-      card.on 'dragend', =>
-        @endDrag()
+      card.on 'dragend', (e) =>
+        e.stopPropagation()
+        if @dragInterval
+          @endDrag()
 
       #layer.add(@)
 

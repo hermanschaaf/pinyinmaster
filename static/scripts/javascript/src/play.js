@@ -43,11 +43,17 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       this.layer = layer;
       baseLayer = this.layer;
       this.stage = this.game.stage;
+      this.grayText = '#454545';
+      this.blackText = '#000000';
       console.log("stage is", this.stage);
+      this.playing = true;
+      this.score = 1;
+      this.combo = 1;
       this.w = this.stage.getWidth();
       this.h = this.stage.getHeight();
       this.scoreLayer = new K.Layer();
       this.drawScores(this.scoreLayer);
+      this.drawTones(this.scoreLayer);
       this.cardsLayer = new K.Layer();
       this.drawCards(this.cardsLayer);
       this.drawActiveCard(this.cardsLayer);
@@ -57,10 +63,11 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
 
     PlayLevel.prototype.drawScores = function(layer) {
       var score;
+      layer.removeChildren();
       score = new K.Text({
         x: this.w * 0.05,
         y: this.h * 0.05,
-        text: '1,000',
+        text: this.score,
         fontSize: this.h * 0.1,
         fontFamily: 'karatemedium',
         fill: 'white',
@@ -68,11 +75,16 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
         width: this.w * 0.5,
         padding: 5
       });
-      return layer.add(score);
+      layer.add(score);
+      return layer.draw();
+    };
+
+    PlayLevel.prototype.drawTones = function(layer) {
+      return console.log("draw tones");
     };
 
     PlayLevel.prototype.getCard = function(_arg) {
-      var card, char, draggable, name, paper, randX, randY, word;
+      var ascii, card, center, char, def, draggable, fullWord, height, left, name, paper, randX, randY, top, width, word;
       name = _arg.name, draggable = _arg.draggable, word = _arg.word;
       if (draggable == null) {
         draggable = false;
@@ -86,12 +98,17 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       });
       randX = Math.random();
       randY = Math.random();
+      top = 0.2 + randY * 0.05;
+      center = 0.5 + randX * 0.05;
+      width = 0.8;
+      height = 0.8;
+      left = center - width * 0.5;
       paper = tools.createRect({
         stage: this.stage,
-        top: 0.2 + randY * 0.05,
-        left: 0.5 + randX * 0.05,
-        width: 0.8,
-        marginLeft: -0.5,
+        top: top,
+        left: left,
+        width: width,
+        marginLeft: 0,
         marginTop: 0.0,
         height: 'square',
         name: name,
@@ -101,18 +118,56 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       });
       tools.addShadow(paper);
       char = new K.Text({
-        y: (0.2 + randY * 0.05) * this.w,
-        x: (0.5 + randX * 0.05) * this.w - (0.3 * this.w),
+        y: top * this.h + 0.15 * width * this.w,
+        x: center * this.w - (0.3 * this.w),
         text: word.char,
-        fontSize: 0.6 * this.w,
+        fontSize: 0.75 * width * this.w,
         fontFamily: 'arial',
-        fill: 'black',
+        fill: this.blackText,
+        align: 'center',
+        width: 0.75 * width * this.w,
+        padding: 0
+      });
+      console.log('no padding 3');
+      ascii = new K.Text({
+        y: top * this.h + 0.82 * width * this.w,
+        x: (0.5 + randX * 0.05) * this.w - (0.3 * this.w),
+        text: word.ascii,
+        fontSize: 0.15 * width * this.w,
+        fontFamily: 'arial',
+        fill: this.grayText,
         align: 'center',
         width: 0.6 * this.w,
-        padding: this.w * 0.1
+        padding: 0
       });
+      def = new K.Text({
+        y: top * this.h,
+        x: left * this.w,
+        text: word.def,
+        fontSize: Math.max(10, 0.04 * width * this.w),
+        fontFamily: 'arial',
+        fill: this.grayText,
+        align: 'left',
+        width: 0.5 * width * this.w,
+        padding: 0.05 * width * this.w
+      });
+      fullWord = new K.Text({
+        y: top * this.h,
+        x: center * this.w,
+        text: word.char,
+        fontSize: 0.08 * width * this.w,
+        fontFamily: 'arial',
+        fill: this.grayText,
+        align: 'right',
+        width: 0.5 * width * this.w,
+        padding: 0.05 * width * this.w
+      });
+      card.word = word;
       card.add(paper);
       card.add(char);
+      card.add(ascii);
+      card.add(def);
+      card.add(fullWord);
       card.setSize(paper.getSize());
       return card;
     };
@@ -150,11 +205,11 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
         if (_this.dragPositions.length > 3) {
           return _this.dragPositions.slice(0, 1);
         }
-      }, 30);
+      }, 50);
     };
 
     PlayLevel.prototype.endDrag = function() {
-      var dragEndPos, dragEndTime, numPositions, overThresholdX, overThresholdY, xFriction, xVel, yFriction, yVel,
+      var ans, bottomTime, c, dragEndPos, dragEndTime, finalXPos, finalYPos, leftTime, numPositions, overThresholdX, overThresholdY, rightTime, topTime, v, xFriction, xVel, yFriction, yVel,
         _this = this;
       clearInterval(this.dragInterval);
       dragEndTime = (new Date()).getTime();
@@ -179,25 +234,86 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       yFriction = 0.20;
       overThresholdX = 0;
       overThresholdY = 0;
-      if (Math.abs(xVel) > 0.05) {
+      if (Math.abs(xVel) > 0.1) {
         console.log("flick off X, motherflicker!");
         overThresholdX = 1;
       }
-      if (Math.abs(yVel) > 0.05) {
+      if (Math.abs(yVel) > 0.1) {
         console.log("flick off Y, motherflicker!");
         overThresholdY = 1;
       }
-      console.log('xvel', xVel, overThresholdX, overThresholdY);
       if (overThresholdY || overThresholdX) {
+        finalXPos = xVel * 3;
+        finalYPos = yVel * 3;
+        finalXPos = finalXPos < 2.0 && finalXPos > 0.0 ? 2.0 : finalXPos > -2.0 && finalXPos < 0.0 ? -2.0 : finalXPos;
+        finalYPos = finalYPos < 2.0 && finalYPos > 0.0 ? 2.0 : finalYPos > -2.0 && finalYPos < 0.0 ? -2.0 : finalYPos;
         this.activeCard.transitionTo({
-          x: this.activeCard.getX() + (xVel / Math.abs(xVel) * this.w) * overThresholdX,
-          y: this.activeCard.getY() + (yVel / Math.abs(yVel) * this.h) * overThresholdY,
+          x: this.activeCard.getX() + (finalXPos * this.w) * overThresholdX,
+          y: this.activeCard.getY() + (finalYPos * this.h) * overThresholdY,
           duration: 0.2,
-          easing: 'ease-out'
+          easing: 'ease-in-out'
         });
+        c = {
+          x: this.activeCard.getX() + this.activeCard.getWidth() / 2,
+          y: this.activeCard.getY() + this.activeCard.getHeight() / 2
+        };
+        v = {
+          x: xVel,
+          y: yVel
+        };
+        console.log(c.y, v.y);
+        topTime = v.y !== 0 ? (0 - c.y) / v.y : -1;
+        console.log("Top Time is", topTime);
+        bottomTime = v.y !== 0 ? (this.h - c.y) / v.y : -1;
+        console.log("Bottom Time is", bottomTime);
+        leftTime = v.x !== 0 ? (0 - c.x) / v.x : -1;
+        rightTime = v.x !== 0 ? (-this.w - c.x) / v.x : -1;
+        console.log("topTime", topTime, "bottomTime", bottomTime);
+        ans = '0';
+        if (v.y < 0) {
+          if (Math.abs(v.x) > Math.abs(v.y)) {
+            if (v.x < 0) {
+              console.log("LEFT!");
+              ans = '4';
+            } else {
+              console.log("RIGHT!");
+              ans = '2';
+            }
+          } else {
+            console.log("TOP!");
+            ans = '1';
+          }
+        } else {
+          if (Math.abs(v.x) > Math.abs(v.y)) {
+            if (v.x < 0) {
+              console.log("LEFT!");
+              ans = '4';
+            } else {
+              console.log("RIGHT!");
+              ans = '2';
+            }
+          } else {
+            console.log("BOTTOM!");
+            ans = '3';
+          }
+        }
+        this.checkAnswer(ans, this.activeCard.word);
         return setTimeout(function() {
           return _this.drawActiveCard(_this.cardsLayer);
         }, 0.1);
+      }
+    };
+
+    PlayLevel.prototype.checkAnswer = function(tone, word) {
+      console.log("checkAnswer", tone, word.ans);
+      if (tone === word.ans.charAt(0)) {
+        this.score += 1 * parseInt(Math.max(this.combo / 2, 1));
+        this.combo += 1;
+        console.log("JIAYOU!!!!");
+        this.drawScores(this.scoreLayer);
+        return console.log(this.score);
+      } else {
+        return this.combo = 1;
       }
     };
 
@@ -211,8 +327,11 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       card.on('dragstart', function() {
         return _this.startDrag();
       });
-      return card.on('dragend', function() {
-        return _this.endDrag();
+      return card.on('dragend', function(e) {
+        e.stopPropagation();
+        if (_this.dragInterval) {
+          return _this.endDrag();
+        }
       });
     };
 

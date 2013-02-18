@@ -77,6 +77,7 @@ define(['jquery', 'kinetic'], function($, K) {
       } else {
         height = height <= 1.0 ? h * height : height;
       }
+      console.log("draw rect", h, top, height, marginTop, h * top, h * top + height * marginTop);
       rect = new K.Rect({
         x: w * left + width * marginLeft,
         y: h * top + height * marginTop,

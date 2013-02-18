@@ -59,6 +59,7 @@ define [
       else
         height = if height <= 1.0 then h * height else height
 
+      console.log "draw rect", h, top, height, marginTop, h * top, h * top + height * marginTop
       rect = new K.Rect
         x: w * left + width * marginLeft
         y: h * top + height * marginTop
