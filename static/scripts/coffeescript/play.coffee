@@ -326,49 +326,6 @@ define [
             console.log "BOTTOM!"
             ans = '3'
 
-
-        # if topTime > 0.0 or Math.abs(topTime) < Math.abs(bottomTime)
-          
-        #   if leftTime > 0.0 or Math.abs(leftTime) < Math.abs(rightTime)
-
-        #     if topTime < leftTime
-        #       console.log "exit top!!!"
-        #       ans = '1'
-        #     else
-        #       console.log "exit left!!!"
-        #       ans = '4'
-
-        #   else if rightTime > 0.0 or Math.abs(rightTime) < Math.abs(leftTime)
-            
-        #     if topTime < rightTime
-        #       console.log "exit top!!!"
-        #       ans = '1'
-        #     else
-        #       console.log "exit right!!!"
-        #       ans = '2'
-
-        # else if bottomTime > 0.0 or Math.abs(bottomTime) < Math.abs(topTime)
-
-        #   if leftTime > 0.0 or Math.abs(leftTime) < Math.abs(rightTime)
-
-        #     if bottomTime < leftTime
-        #       console.log "exit bottom!!!"
-        #       ans = '3'
-        #     else
-        #       console.log "exit left!!!"
-        #       ans = '4'
-
-        #   else if rightTime > 0.0 or Math.abs(rightTime) < Math.abs(leftTime)
-
-        #     if bottomTime < rightTime
-        #       console.log "exit bottom!!!"
-        #       ans = '3'
-        #     else
-        #       console.log "exit right!!!"
-        #       ans = '2'
-        # else
-        #   console.log "GAP!"
-
         @checkAnswer(ans, @activeCard.word)
 
         setTimeout =>
