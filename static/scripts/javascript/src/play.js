@@ -49,6 +49,7 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       this.playing = true;
       this.score = 1;
       this.combo = 1;
+      this.bottomStack = -1;
       this.w = this.stage.getWidth();
       this.h = this.stage.getHeight();
       this.scoreLayer = new K.Layer();
@@ -84,18 +85,24 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
     };
 
     PlayLevel.prototype.getCard = function(_arg) {
-      var ascii, card, center, char, def, draggable, fullWord, height, left, name, paper, randX, randY, top, width, word;
-      name = _arg.name, draggable = _arg.draggable, word = _arg.word;
+      var ascii, bottom, card, center, char, def, draggable, fullWord, height, left, name, paper, randX, randY, top, width, word;
+      name = _arg.name, draggable = _arg.draggable, word = _arg.word, bottom = _arg.bottom;
       if (draggable == null) {
         draggable = false;
       }
       if (word == null) {
         word = words[parseInt(Math.floor(Math.random() * words.length))];
       }
+      if (bottom == null) {
+        bottom = true;
+      }
       console.log(word, draggable);
       card = new K.Group({
-        draggable: draggable
+        draggable: draggable,
+        name: 'group' + name,
+        zIndex: this.bottomStack
       });
+      this.bottomStack -= 1;
       randX = Math.random();
       randY = Math.random();
       top = 0.2 + randY * 0.05;
@@ -185,6 +192,15 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
         _results.push(layer.add(card));
       }
       return _results;
+    };
+
+    PlayLevel.prototype.removeCard = function(layer, card) {
+      var c;
+      console.log(layer);
+      console.log(card);
+      c = layer.get(card.getName());
+      card.remove();
+      return console.log(card);
     };
 
     PlayLevel.prototype.startDrag = function() {
@@ -298,9 +314,19 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
           }
         }
         this.checkAnswer(ans, this.activeCard.word);
+        setTimeout(function() {
+          var newCard;
+          _this.removeCard(_this.cardsLayer, _this.activeCard);
+          newCard = _this.getCard({
+            name: 'whatever' + Math.random(),
+            draggable: false,
+            bottom: true
+          });
+          return _this.cardsLayer.add(newCard);
+        }, 100);
         return setTimeout(function() {
           return _this.drawActiveCard(_this.cardsLayer);
-        }, 0.1);
+        }, 100);
       }
     };
 

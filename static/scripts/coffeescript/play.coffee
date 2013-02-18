@@ -51,6 +51,7 @@ define [
       @playing = true
       @score = 1
       @combo = 1
+      @bottomStack = -1
 
       @w = @stage.getWidth()
       @h = @stage.getHeight()
@@ -87,15 +88,19 @@ define [
     drawTones: (layer) ->
       console.log "draw tones"
 
-    getCard: ({name, draggable, word}) ->
+    getCard: ({name, draggable, word, bottom}) ->
       draggable ?= false
       word ?= words[parseInt(Math.floor(Math.random() * words.length))]
+      bottom ?= true
 
       console.log word, draggable
 
       card = new K.Group(
         draggable: draggable
+        name: 'group'+name
+        zIndex: @bottomStack
       ) 
+      @bottomStack -= 1
 
       randX = Math.random()
       randY = Math.random()
@@ -184,6 +189,14 @@ define [
         @cards.push(card)
 
         layer.add(card)
+
+    removeCard: (layer, card) ->
+      console.log layer
+      console.log card
+      c = layer.get(card.getName())
+      card.remove()
+      console.log card
+      #layer.remove(card.getName())
 
     startDrag: ->
       @dragStartTime = (new Date()).getTime()
@@ -329,8 +342,18 @@ define [
         @checkAnswer(ans, @activeCard.word)
 
         setTimeout =>
+          @removeCard(@cardsLayer, @activeCard)
+          newCard = @getCard
+            name: 'whatever'+Math.random()
+            draggable: false
+            bottom: true
+          @cardsLayer.add(newCard)
+        , 100
+
+        setTimeout =>
           @drawActiveCard(@cardsLayer)
-        , 0.1
+        , 100
+
 
 
     checkAnswer: (tone, word) ->
