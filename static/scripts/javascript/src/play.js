@@ -49,7 +49,6 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       this.playing = true;
       this.score = 1;
       this.combo = 1;
-      this.bottomStack = -1;
       this.w = this.stage.getWidth();
       this.h = this.stage.getHeight();
       this.scoreLayer = new K.Layer();
@@ -85,24 +84,19 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
     };
 
     PlayLevel.prototype.getCard = function(_arg) {
-      var ascii, bottom, card, center, char, def, draggable, fullWord, height, left, name, paper, randX, randY, top, width, word;
-      name = _arg.name, draggable = _arg.draggable, word = _arg.word, bottom = _arg.bottom;
+      var ascii, card, center, char, def, draggable, fullWord, height, left, name, paper, randX, randY, top, width, word;
+      name = _arg.name, draggable = _arg.draggable, word = _arg.word;
       if (draggable == null) {
         draggable = false;
       }
       if (word == null) {
         word = words[parseInt(Math.floor(Math.random() * words.length))];
       }
-      if (bottom == null) {
-        bottom = true;
-      }
       console.log(word, draggable);
       card = new K.Group({
         draggable: draggable,
-        name: 'group' + name,
-        zIndex: this.bottomStack
+        name: 'group' + name
       });
-      this.bottomStack -= 1;
       randX = Math.random();
       randY = Math.random();
       top = 0.2 + randY * 0.05;
@@ -189,7 +183,8 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
           name: 'card' + i
         });
         this.cards.push(card);
-        _results.push(layer.add(card));
+        layer.add(card);
+        _results.push(card.setZIndex(-this.cards.length));
       }
       return _results;
     };
@@ -290,27 +285,27 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
           if (Math.abs(v.x) > Math.abs(v.y)) {
             if (v.x < 0) {
               console.log("LEFT!");
-              ans = '4';
+              ans = '1';
             } else {
               console.log("RIGHT!");
-              ans = '2';
+              ans = '3';
             }
           } else {
             console.log("TOP!");
-            ans = '1';
+            ans = '2';
           }
         } else {
           if (Math.abs(v.x) > Math.abs(v.y)) {
             if (v.x < 0) {
               console.log("LEFT!");
-              ans = '4';
+              ans = '1';
             } else {
               console.log("RIGHT!");
-              ans = '2';
+              ans = '3';
             }
           } else {
             console.log("BOTTOM!");
-            ans = '3';
+            ans = '4';
           }
         }
         this.checkAnswer(ans, this.activeCard.word);
@@ -319,10 +314,12 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
           _this.removeCard(_this.cardsLayer, _this.activeCard);
           newCard = _this.getCard({
             name: 'whatever' + Math.random(),
-            draggable: false,
-            bottom: true
+            draggable: false
           });
-          return _this.cardsLayer.add(newCard);
+          _this.cardsLayer.add(newCard);
+          _this.cards.push(newCard);
+          newCard.setZIndex(-_this.cards.length);
+          return _this.bottomStack -= 1;
         }, 100);
         return setTimeout(function() {
           return _this.drawActiveCard(_this.cardsLayer);
@@ -335,18 +332,70 @@ define(['jquery', 'kinetic', 'tools'], function($, K, tools) {
       if (tone === word.ans.charAt(0)) {
         this.score += 1 * parseInt(Math.max(this.combo / 2, 1));
         this.combo += 1;
-        console.log("JIAYOU!!!!");
         this.drawScores(this.scoreLayer);
+        this.drawGlow(word.ans.charAt(0), true);
         return console.log(this.score);
       } else {
-        return this.combo = 1;
+        this.combo = 1;
+        return this.drawGlow(tone, false);
+      }
+    };
+
+    PlayLevel.prototype.drawGlow = function(tone, correct) {
+      var glow;
+      glow = false;
+      if (tone === '4') {
+        glow = new K.Rect({
+          x: 0,
+          y: 0,
+          width: this.w,
+          height: 10,
+          fill: correct ? "#00ff00" : "#ff0000",
+          stroke: 'none'
+        });
+      }
+      if (tone === '3') {
+        glow = new K.Rect({
+          x: this.w - 10,
+          y: 0,
+          width: 10,
+          height: this.h,
+          fill: correct ? "#00ff00" : "#ff0000",
+          stroke: 'none'
+        });
+      }
+      if (tone === '4') {
+        glow = new K.Rect({
+          x: 0,
+          y: this.h - 10,
+          width: this.w,
+          height: 10,
+          fill: correct ? "#00ff00" : "#ff0000",
+          stroke: 'none'
+        });
+      }
+      if (tone === '1') {
+        glow = new K.Rect({
+          x: 0,
+          y: 0,
+          width: 10,
+          height: this.h,
+          fill: correct ? "#00ff00" : "#ff0000",
+          stroke: 'none'
+        });
+      }
+      if (glow) {
+        this.scoreLayer.clear();
+        this.scoreLayer.add(glow);
+        this.scoreLayer.draw();
+        return console.log("GLOW IS", glow);
       }
     };
 
     PlayLevel.prototype.drawActiveCard = function(layer) {
       var card,
         _this = this;
-      this.activeCard = this.cards.pop();
+      this.activeCard = this.cards.shift();
       card = this.activeCard;
       card.setDraggable(true);
       console.log("ACTIVE CARD IS", card);

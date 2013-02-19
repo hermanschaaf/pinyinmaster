@@ -51,7 +51,6 @@ define [
       @playing = true
       @score = 1
       @combo = 1
-      @bottomStack = -1
 
       @w = @stage.getWidth()
       @h = @stage.getHeight()
@@ -88,19 +87,16 @@ define [
     drawTones: (layer) ->
       console.log "draw tones"
 
-    getCard: ({name, draggable, word, bottom}) ->
+    getCard: ({name, draggable, word}) ->
       draggable ?= false
       word ?= words[parseInt(Math.floor(Math.random() * words.length))]
-      bottom ?= true
 
       console.log word, draggable
 
       card = new K.Group(
         draggable: draggable
         name: 'group'+name
-        zIndex: @bottomStack
       ) 
-      @bottomStack -= 1
 
       randX = Math.random()
       randY = Math.random()
@@ -187,8 +183,8 @@ define [
       for i in [0..5]
         card = @getCard({name: 'card'+i})
         @cards.push(card)
-
         layer.add(card)
+        card.setZIndex(-@cards.length)
 
     removeCard: (layer, card) ->
       console.log layer
@@ -318,26 +314,26 @@ define [
             # left or right
             if v.x < 0
               console.log "LEFT!"
-              ans = '4'
+              ans = '1'
             else
               console.log "RIGHT!"
-              ans = '2'
+              ans = '3'
           else
             console.log "TOP!"
-            ans = '1'
+            ans = '2'
         else
           # bottom
           if Math.abs(v.x) > Math.abs(v.y)
             # left or right
             if v.x < 0
               console.log "LEFT!"
-              ans = '4'
+              ans = '1'
             else
               console.log "RIGHT!"
-              ans = '2'
+              ans = '3'
           else
             console.log "BOTTOM!"
-            ans = '3'
+            ans = '4'
 
         @checkAnswer(ans, @activeCard.word)
 
@@ -346,8 +342,11 @@ define [
           newCard = @getCard
             name: 'whatever'+Math.random()
             draggable: false
-            bottom: true
           @cardsLayer.add(newCard)
+          @cards.push(newCard)
+          newCard.setZIndex(-@cards.length)
+          @bottomStack -= 1
+          
         , 100
 
         setTimeout =>
@@ -361,16 +360,57 @@ define [
       if tone == word.ans.charAt(0)
         @score += 1 * parseInt(Math.max(@combo / 2, 1))
         @combo += 1
-        console.log "JIAYOU!!!!"
         @drawScores(@scoreLayer)
+        @drawGlow(word.ans.charAt(0), true)
         console.log @score
       else
         @combo = 1
+        @drawGlow(tone, false)
+
+    drawGlow: (tone, correct) ->
+      glow = false
+      if tone == '4'
+        glow = new K.Rect
+          x: 0
+          y: 0
+          width: @w
+          height: 10
+          fill: if correct then "#00ff00" else "#ff0000"
+          stroke: 'none'
+      if tone == '3'
+        glow = new K.Rect
+          x: @w-10
+          y: 0
+          width: 10
+          height: @h
+          fill: if correct then "#00ff00" else "#ff0000"
+          stroke: 'none'
+      if tone == '4'
+        glow = new K.Rect
+          x: 0
+          y: @h - 10
+          width: @w
+          height: 10
+          fill: if correct then "#00ff00" else "#ff0000"
+          stroke: 'none'
+      if tone == '1'
+        glow = new K.Rect
+          x: 0
+          y: 0
+          width: 10
+          height: @h
+          fill: if correct then "#00ff00" else "#ff0000"
+          stroke: 'none'
+      if glow
+        @scoreLayer.clear()
+        @scoreLayer.add(glow)
+        @scoreLayer.draw()
+        console.log "GLOW IS", glow
 
     drawActiveCard: (layer) ->
       #@activeCard = @getCard({draggable: true})
       #card = @activeCard
-      @activeCard = @cards.pop()
+      @activeCard = @cards.shift()
       card = @activeCard
       card.setDraggable true
 
