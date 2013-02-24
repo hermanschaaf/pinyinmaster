@@ -53,6 +53,7 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
       this.playing = true;
       this.score = 1;
       this.combo = 1;
+      this.scoreText = null;
       this.moving = false;
       this.mousePos = [];
       this.w = this.stage.getWidth();
@@ -75,9 +76,8 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
     }
 
     PlayLevel.prototype.drawScores = function(layer) {
-      var score;
       layer.removeChildren();
-      score = new K.Text({
+      this.scoreText = new K.Text({
         x: this.w * 0.05,
         y: this.h * 0.05,
         text: this.score,
@@ -88,7 +88,7 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
         width: this.w * 0.5,
         padding: 5
       });
-      layer.add(score);
+      layer.add(this.scoreText);
       return layer.draw();
     };
 
@@ -210,147 +210,14 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
         });
         this.cards.push(card);
         layer.add(card);
-        _results.push(card.setZIndex(-this.cards.length));
+        card.moveToBottom();
+        _results.push(console.log("draw card setting zindex", -this.cards.length - 1));
       }
       return _results;
     };
 
-    PlayLevel.prototype.removeCard = function(layer, card) {
-      var c;
-      console.log(layer);
-      console.log(card);
-      c = layer.get(card.getName());
-      card.remove();
-      return console.log(card);
-    };
-
-    PlayLevel.prototype.startDrag = function() {
-      var _this = this;
-      this.dragStartTime = (new Date()).getTime();
-      this.dragPositions = [
-        {
-          x: this.activeCard.getX(),
-          y: this.activeCard.getY()
-        }
-      ];
-      return this.dragInterval = setInterval(function() {
-        _this.dragStartTime = (new Date()).getTime();
-        _this.dragPositions.push({
-          x: _this.activeCard.getX(),
-          y: _this.activeCard.getY()
-        });
-        if (_this.dragPositions.length > 3) {
-          return _this.dragPositions.slice(0, 1);
-        }
-      }, 50);
-    };
-
-    PlayLevel.prototype.endDrag = function() {
-      var ans, bottomTime, c, dragEndPos, dragEndTime, finalXPos, finalYPos, leftTime, numPositions, overThresholdX, overThresholdY, rightTime, topTime, v, xFriction, xVel, yFriction, yVel,
-        _this = this;
-      clearInterval(this.dragInterval);
-      dragEndTime = (new Date()).getTime();
-      dragEndPos = {
-        x: this.activeCard.getX(),
-        y: this.activeCard.getY()
-      };
-      numPositions = this.dragPositions.length;
-      xVel = 0;
-      yVel = 0;
-      if (numPositions >= 2) {
-        xVel = (this.dragPositions[numPositions - 1].x - this.dragPositions[numPositions - 2].x) / 0.1;
-        yVel = (this.dragPositions[numPositions - 1].y - this.dragPositions[numPositions - 2].y) / 0.1;
-      } else {
-        xVel = (this.dragPositions[0].x - dragEndPos.x) * 1000.0 / (this.dragStartTime - dragEndTime);
-        yVel = (this.dragPositions[0].y - dragEndPos.y) * 1000.0 / (this.dragStartTime - dragEndTime);
-      }
-      xVel = xVel / this.w;
-      yVel = yVel / this.h;
-      console.log(xVel, yVel);
-      xFriction = 0.20;
-      yFriction = 0.20;
-      overThresholdX = 0;
-      overThresholdY = 0;
-      if (Math.abs(xVel) > 0.1) {
-        console.log("flick off X, motherflicker!");
-        overThresholdX = 1;
-      }
-      if (Math.abs(yVel) > 0.1) {
-        console.log("flick off Y, motherflicker!");
-        overThresholdY = 1;
-      }
-      if (overThresholdY || overThresholdX) {
-        finalXPos = xVel * 3;
-        finalYPos = yVel * 3;
-        finalXPos = finalXPos < 2.0 && finalXPos > 0.0 ? 2.0 : finalXPos > -2.0 && finalXPos < 0.0 ? -2.0 : finalXPos;
-        finalYPos = finalYPos < 2.0 && finalYPos > 0.0 ? 2.0 : finalYPos > -2.0 && finalYPos < 0.0 ? -2.0 : finalYPos;
-        this.activeCard.transitionTo({
-          x: this.activeCard.getX() + (finalXPos * this.w) * overThresholdX,
-          y: this.activeCard.getY() + (finalYPos * this.h) * overThresholdY,
-          duration: 0.2,
-          easing: 'ease-in-out'
-        });
-        c = {
-          x: this.activeCard.getX() + this.activeCard.getWidth() / 2,
-          y: this.activeCard.getY() + this.activeCard.getHeight() / 2
-        };
-        v = {
-          x: xVel,
-          y: yVel
-        };
-        console.log(c.y, v.y);
-        topTime = v.y !== 0 ? (0 - c.y) / v.y : -1;
-        console.log("Top Time is", topTime);
-        bottomTime = v.y !== 0 ? (this.h - c.y) / v.y : -1;
-        console.log("Bottom Time is", bottomTime);
-        leftTime = v.x !== 0 ? (0 - c.x) / v.x : -1;
-        rightTime = v.x !== 0 ? (-this.w - c.x) / v.x : -1;
-        console.log("topTime", topTime, "bottomTime", bottomTime);
-        ans = '0';
-        if (v.y < 0) {
-          if (Math.abs(v.x) > Math.abs(v.y)) {
-            if (v.x < 0) {
-              console.log("LEFT!");
-              ans = '1';
-            } else {
-              console.log("RIGHT!");
-              ans = '3';
-            }
-          } else {
-            console.log("TOP!");
-            ans = '2';
-          }
-        } else {
-          if (Math.abs(v.x) > Math.abs(v.y)) {
-            if (v.x < 0) {
-              console.log("LEFT!");
-              ans = '1';
-            } else {
-              console.log("RIGHT!");
-              ans = '3';
-            }
-          } else {
-            console.log("BOTTOM!");
-            ans = '4';
-          }
-        }
-        this.checkAnswer(ans, this.activeCard.word);
-        setTimeout(function() {
-          var newCard;
-          _this.removeCard(_this.cardsLayer, _this.activeCard);
-          newCard = _this.getCard({
-            name: 'whatever' + Math.random(),
-            draggable: false
-          });
-          _this.cardsLayer.add(newCard);
-          _this.cards.push(newCard);
-          newCard.setZIndex(-_this.cards.length);
-          return _this.bottomStack -= 1;
-        }, 100);
-        return setTimeout(function() {
-          return _this.drawActiveCard(_this.cardsLayer);
-        }, 100);
-      }
+    PlayLevel.prototype.removeCard = function(card) {
+      return card.remove();
     };
 
     PlayLevel.prototype.checkAnswer = function(tone, word) {
@@ -424,6 +291,24 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
       return card = this.activeCard;
     };
 
+    PlayLevel.prototype.drawNewCard = function() {
+      var newCard;
+      console.log("drawNewCard");
+      self.removeCard(self.activeCard);
+      self.drawActiveCard(self.cardsLayer);
+      console.log("drawNewCard 30");
+      newCard = self.getCard({
+        name: 'whatever' + Math.random(),
+        draggable: false
+      });
+      self.cardsLayer.add(newCard);
+      self.cards.push(newCard);
+      console.log("new card setting zindex", -self.cards.length - 1);
+      newCard.moveToBottom();
+      console.log("new card setting active card zindex", -self.cards.length - 1);
+      return console.log(self.cards, self.activeCard);
+    };
+
     PlayLevel.prototype.clip = function(shape, mask, callback) {
       var cb;
       cb = function(img) {
@@ -472,9 +357,12 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
       stage = this.stage;
       layer = this.cardsLayer;
       stage.on("mousedown", function(e) {
+        self.scoreText.setText("mousedown" + self.moving);
+        self.scoreLayer.drawScene();
         console.log("mousedown @@@");
         if (self.moving) {
-          return self.moving = false;
+          self.moving = true;
+          return self.mousePos = [];
         } else {
           self.mousePos = [];
           return self.moving = true;
@@ -489,6 +377,8 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
       return stage.on("mouseup", function() {
         var activeCard, card, constY, corner, corner1, corner2, m, m1, m2, mask1, mask2, mask3, mousePos, moving, origin, p1, p2,
           _this = this;
+        self.scoreText.setText("mouseup" + self.moving);
+        self.scoreLayer.drawScene();
         console.log("mouseup @@@");
         activeCard = self.activeCard;
         mousePos = self.mousePos;
@@ -496,7 +386,7 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
         layer = self.cardsLayer;
         console.log("moving", moving);
         if (moving) {
-          moving = false;
+          self.moving = false;
           console.log(self, self.activeCard);
           origin = {
             x: self.activeCard.getX(),
@@ -547,7 +437,8 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
                 return self.clip(self.activeCard, mask3, done);
               }
             }, function(err, results) {
-              var clip1, clip2, clip3;
+              var clip1, clip2, clip3,
+                _this = this;
               console.log("clips", results);
               clip1 = results.clip1;
               clip2 = results.clip2;
@@ -555,8 +446,13 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
               self.flick(clip1, "top");
               self.flick(clip2, "bottom", "left");
               self.flick(clip3, "bottom", "right");
-              self.activeCard.remove();
-              return layer.drawScene();
+              layer.drawScene();
+              setTimeout(function() {
+                self.removeCard(clip1);
+                self.removeCard(clip2);
+                return self.removeCard(clip3);
+              }, 1000);
+              return self.drawNewCard();
             });
           } else {
             m = (p2.y - p1.y) / (p2.x - p1.x);
@@ -603,14 +499,19 @@ define(['jquery', 'kinetic', 'async', 'tools'], function($, K, async, tools) {
                 return self.clip(self.activeCard, mask2, done);
               }
             }, function(err, results) {
-              var clip1, clip2;
+              var clip1, clip2,
+                _this = this;
               console.log("clips", results);
               clip1 = results.clip1;
               clip2 = results.clip2;
               self.flick(clip1, "top");
               self.flick(clip2, "bottom");
-              self.activeCard.remove();
-              return layer.drawScene();
+              layer.drawScene();
+              setTimeout(function() {
+                self.removeCard(clip1);
+                return self.removeCard(clip2);
+              }, 1000);
+              return self.drawNewCard();
             });
           }
         }

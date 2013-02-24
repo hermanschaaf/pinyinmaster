@@ -56,6 +56,8 @@ define [
       @score = 1
       @combo = 1
 
+      @scoreText = null;
+
       @moving = false
       @mousePos = []
 
@@ -86,7 +88,7 @@ define [
 
     drawScores: (layer) ->
       layer.removeChildren()
-      score = new K.Text
+      @scoreText = new K.Text
         x: @w * 0.05
         y: @h * 0.05
         text: @score
@@ -96,7 +98,7 @@ define [
         align: 'left'
         width: @w * 0.5
         padding: 5
-      layer.add(score)
+      layer.add(@scoreText)
       layer.draw()
 
     drawTones: (layer) ->
@@ -203,176 +205,11 @@ define [
         card = @getCard({name: 'card'+i})
         @cards.push(card)
         layer.add(card)
-        card.setZIndex(-@cards.length)
+        card.moveToBottom()
+        console.log "draw card setting zindex", -@cards.length-1
 
-    removeCard: (layer, card) ->
-      console.log layer
-      console.log card
-      c = layer.get(card.getName())
+    removeCard: (card) ->
       card.remove()
-      console.log card
-      #layer.remove(card.getName())
-
-    startDrag: ->
-      @dragStartTime = (new Date()).getTime()
-      @dragPositions = [
-        x: @activeCard.getX()
-        y: @activeCard.getY()
-      ]
-      @dragInterval = setInterval =>
-        @dragStartTime = (new Date()).getTime()
-        @dragPositions.push
-          x: @activeCard.getX()
-          y: @activeCard.getY()
-        if @dragPositions.length > 3
-          @dragPositions.slice(0,1)
-      , 50
-
-    endDrag: ->
-      clearInterval(@dragInterval)
-      dragEndTime = (new Date()).getTime()
-      dragEndPos = 
-        x: @activeCard.getX()
-        y: @activeCard.getY()
-
-      numPositions = @dragPositions.length
-      xVel = 0
-      yVel = 0
-      if numPositions >= 2
-        xVel = (( @dragPositions[numPositions-1].x - @dragPositions[numPositions-2].x ) / 0.1)
-        yVel = (( @dragPositions[numPositions-1].y - @dragPositions[numPositions-2].y ) / 0.1)
-      else
-        xVel = (( @dragPositions[0].x - dragEndPos.x ) * 1000.0 / (@dragStartTime - dragEndTime))
-        yVel = (( @dragPositions[0].y - dragEndPos.y ) * 1000.0 / (@dragStartTime - dragEndTime))
-
-      # get velocities as percentage of screen width and height
-      xVel = xVel / @w
-      yVel = yVel / @h
-
-      console.log xVel, yVel
-
-      # now we have the velocity of the last ~50ms of the drag, 
-      # extrapolate the speed and flick the card off the screen
-      # if the speed is over a certain threshold
-
-      xFriction = 0.20 # final velocity as percentage of screen dimestions
-      yFriction = 0.20
-
-      overThresholdX = 0
-      overThresholdY = 0
-
-      if Math.abs(xVel) > 0.1
-        console.log "flick off X, motherflicker!"
-        overThresholdX = 1
-        
-      if Math.abs(yVel) > 0.1
-        console.log "flick off Y, motherflicker!"
-        overThresholdY = 1 
-
-      if overThresholdY or overThresholdX
-        finalXPos = xVel * 3
-        finalYPos = yVel * 3
-        finalXPos = if finalXPos < 2.0 and finalXPos > 0.0 then 2.0 else if finalXPos > -2.0 and finalXPos < 0.0 then -2.0 else finalXPos
-        finalYPos = if finalYPos < 2.0 and finalYPos > 0.0 then 2.0 else if finalYPos > -2.0 and finalYPos < 0.0 then -2.0 else finalYPos
-        @activeCard.transitionTo
-          x: @activeCard.getX() + (finalXPos * @w ) * overThresholdX
-          y: @activeCard.getY() + (finalYPos * @h ) * overThresholdY
-          duration: 0.2
-          easing: 'ease-in-out'
-
-        # to calculate the answer, we need to calculate
-        # the intersection of the center of the card with
-        # the corners of the screen on its way out. Fun!
-
-        # get the center of the card
-        c = 
-          x: @activeCard.getX() + @activeCard.getWidth() / 2
-          y: @activeCard.getY() + @activeCard.getHeight() / 2
-
-        # velocity shortcut
-        v = 
-          x: xVel
-          y: yVel
-
-        # so at time t, center of card is at:
-        # x(t) = c.x + v.x * t
-        # y(t) = c.y + v.y * t
-
-        # we want to know whether t is positive or negative
-        # at the time of crossing certain boundaries
-        # -> this will tell us whether it will or will not cross, 
-        # respectively
-
-        # so:
-        # t = (x - c.x) / v.x
-        # t = (y - c.y) / v.y
-
-        # check intersection with top line (when y = 0):
-        console.log c.y, v.y
-        topTime = if v.y != 0 then (0 - c.y) / v.y else -1
-        #exitTop = topTime >= 0 and topTime <= 200
-        console.log "Top Time is", topTime
-
-        bottomTime = if v.y != 0 then (@h - c.y) / v.y else -1
-        #exitBottom = bottomTime >= 0 and bottomTime <= 200
-        console.log "Bottom Time is", bottomTime
-
-        leftTime = if v.x != 0 then (0 - c.x) / v.x else -1
-        #exitLeft = leftTime >= 0 and leftTime <= 200
-
-        rightTime = if v.x != 0 then (-@w - c.x) / v.x else -1
-        #exitRight = rightTime >= 0 and rightTime <= 200
-
-        console.log "topTime", topTime, "bottomTime", bottomTime
-
-        ans = '0'
-
-        if v.y < 0
-          # top
-          if Math.abs(v.x) > Math.abs(v.y)
-            # left or right
-            if v.x < 0
-              console.log "LEFT!"
-              ans = '1'
-            else
-              console.log "RIGHT!"
-              ans = '3'
-          else
-            console.log "TOP!"
-            ans = '2'
-        else
-          # bottom
-          if Math.abs(v.x) > Math.abs(v.y)
-            # left or right
-            if v.x < 0
-              console.log "LEFT!"
-              ans = '1'
-            else
-              console.log "RIGHT!"
-              ans = '3'
-          else
-            console.log "BOTTOM!"
-            ans = '4'
-
-        @checkAnswer(ans, @activeCard.word)
-
-        setTimeout =>
-          @removeCard(@cardsLayer, @activeCard)
-          newCard = @getCard
-            name: 'whatever'+Math.random()
-            draggable: false
-          @cardsLayer.add(newCard)
-          @cards.push(newCard)
-          newCard.setZIndex(-@cards.length)
-          @bottomStack -= 1
-          
-        , 100
-
-        setTimeout =>
-          @drawActiveCard(@cardsLayer)
-        , 100
-
-
 
     checkAnswer: (tone, word) ->
       console.log "checkAnswer", tone, word.ans
@@ -427,21 +264,27 @@ define [
         console.log "GLOW IS", glow
 
     drawActiveCard: (layer) ->
-      #@activeCard = @getCard({draggable: true})
-      #card = @activeCard
       @activeCard = @cards.shift()
       card = @activeCard
-      #card.setDraggable true
 
-      #console.log "ACTIVE CARD IS", card
-      # card.on 'dragstart', =>
-      #   @startDrag()
-      # card.on 'dragend', (e) =>
-      #   e.stopPropagation()
-      #   if @dragInterval
-      #     @endDrag()
+    drawNewCard: ->
+      console.log "drawNewCard"
+      self.removeCard(self.activeCard)
+      self.drawActiveCard(self.cardsLayer)
+      #self.activeCard.moveToTop()
 
-      #layer.add(@)
+      console.log "drawNewCard 30"
+      newCard = self.getCard
+        name: 'whatever'+Math.random()
+        draggable: false
+      self.cardsLayer.add(newCard)
+      self.cards.push(newCard)
+      console.log "new card setting zindex", -self.cards.length-1
+      newCard.moveToBottom()
+      
+      console.log "new card setting active card zindex", -self.cards.length-1
+      console.log self.cards, self.activeCard
+    
 
     clip: (shape, mask, callback) ->
       
@@ -485,9 +328,12 @@ define [
       layer = @cardsLayer
 
       stage.on "mousedown", (e) ->
+        self.scoreText.setText("mousedown" + self.moving)
+        self.scoreLayer.drawScene()
         console.log "mousedown @@@"
         if self.moving
-          self.moving = false
+          self.moving = true
+          self.mousePos = []
         else
           self.mousePos = []
           self.moving = true
@@ -501,6 +347,8 @@ define [
 
       #layer.drawScene();
       stage.on "mouseup", ->
+        self.scoreText.setText("mouseup" + self.moving)
+        self.scoreLayer.drawScene()
         console.log "mouseup @@@"
         activeCard = self.activeCard
         mousePos = self.mousePos
@@ -510,7 +358,7 @@ define [
         console.log "moving", moving
 
         if moving
-          moving = false
+          self.moving = false
           
           console.log self, self.activeCard
           # y = m (x-x1)+ y1
@@ -578,8 +426,15 @@ define [
               self.flick clip1, "top"
               self.flick clip2, "bottom", "left"
               self.flick clip3, "bottom", "right"
-              self.activeCard.remove()
+              #self.activeCard.remove()
               layer.drawScene()
+              setTimeout =>
+                self.removeCard(clip1)
+                self.removeCard(clip2)
+                self.removeCard(clip3)
+              , 1000
+              self.drawNewCard()
+
 
           else
             m = (p2.y - p1.y) / (p2.x - p1.x) # gradient
@@ -631,8 +486,12 @@ define [
               clip2 = results.clip2
               self.flick clip1, "top"
               self.flick clip2, "bottom"
-              self.activeCard.remove()
               layer.drawScene()
+              setTimeout =>
+                self.removeCard(clip1)
+                self.removeCard(clip2)
+              , 1000
+              self.drawNewCard()
 
         moving = false
 
