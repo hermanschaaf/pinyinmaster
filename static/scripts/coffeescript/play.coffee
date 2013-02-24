@@ -1,8 +1,9 @@
 define [
     'jquery'
     'kinetic'
+    'async'
     'tools'
-], ($, K, tools) ->
+], ($, K, async, tools) ->
 
   # static vars (to be loaded with ajax/json)
   words = [
@@ -39,7 +40,10 @@ define [
 
   class PlayLevel
 
+    self = @
+
     constructor: (@game, @layer, level) ->
+      self = @
       baseLayer = @layer
       @stage = @game.stage
 
@@ -52,6 +56,9 @@ define [
       @score = 1
       @combo = 1
 
+      @moving = false
+      @mousePos = []
+
       @w = @stage.getWidth()
       @h = @stage.getHeight()
 
@@ -60,6 +67,12 @@ define [
       @drawTones(@scoreLayer)
 
       @cardsLayer = new K.Layer()
+      @cardsLayer.add(new K.Rect
+        x: 0
+        y: 0
+        width: @w
+        height: @h
+      )
       @drawCards(@cardsLayer)
 
       #@activeLayer = new K.Layer()
@@ -68,6 +81,8 @@ define [
       @stage.add(@scoreLayer)
       @stage.add(@cardsLayer)
       #@stage.add(@activeLayer)
+
+      @startListeners()
 
     drawScores: (layer) ->
       layer.removeChildren()
@@ -173,6 +188,10 @@ define [
       card.add(ascii)
       card.add(def)
       card.add(fullWord)
+      card.getX = => (left * @w)
+      card.getY = => (top * @h)
+      card.getWidth = => width * @w
+      card.getHeight = => width * @w
       card.setSize(paper.getSize())
 
       return card
@@ -180,7 +199,7 @@ define [
     drawCards: (layer) ->
       console.log "now stage is", @stage
       @cards = []
-      for i in [0..5]
+      for i in [0..1]
         card = @getCard({name: 'card'+i})
         @cards.push(card)
         layer.add(card)
@@ -412,64 +431,291 @@ define [
       #card = @activeCard
       @activeCard = @cards.shift()
       card = @activeCard
-      card.setDraggable true
+      #card.setDraggable true
 
-      console.log "ACTIVE CARD IS", card
-      card.on 'dragstart', =>
-        @startDrag()
-      card.on 'dragend', (e) =>
-        e.stopPropagation()
-        if @dragInterval
-          @endDrag()
+      #console.log "ACTIVE CARD IS", card
+      # card.on 'dragstart', =>
+      #   @startDrag()
+      # card.on 'dragend', (e) =>
+      #   e.stopPropagation()
+      #   if @dragInterval
+      #     @endDrag()
 
       #layer.add(@)
 
+    clip: (shape, mask, callback) ->
+      
+      # Asynchronous function to clip an object 
+      cb = (img) ->
+        mask.setFillPatternImage img
+        console.log "CLIPPING MF"
+        console.log mask.getOffset(), shape.getOffset(), shape.getX(), shape.getY(), shape.x, shape.y
+        mask.setX shape.getX() + mask.getOffset().x
+        mask.setY shape.getY() + mask.getOffset().y
+        mask.setFillPatternOffset
+          x: mask.getOffset().x + shape.getX() # we set x and y specifically when we create the card
+          y: mask.getOffset().y + shape.getY()
+
+        mask.setFillPatternRepeat "no-repeat"
+        console.log "calling callback!"
+        callback null, mask
+
+      console.log shape.toImage(callback: cb)
+
+    flick: (shape, direction, sideWays) ->
+      dir = (if direction is "top" then -1 else 1)
+      if sideWays
+        sideWays = (if sideWays is "left" then -1 else 1)
+      else
+        sideWays = 0
+      console.log "width is", shape.getWidth(), shape.getHeight()
+      shape.transitionTo
+        x: shape.getX() + 100 + Math.random() * 100 + sideWays * Math.random() * 1000
+        y: (if (direction is "top") then -500 - Math.max(shape.getWidth(), shape.getHeight()) * 1.41 else self.h + 100)
+        rotation: Math.random() * 2
+        duration: 1
 
 
-    # nextCard: ->
-    #   # pick a card and draw it to the canvas
-    #   @context.clearRect(0,0,@width,@height)
-    #   @chooseWord()
-    #   @drawCard()
-    #   @saveRestorePoint()
+    startListeners: ->
+      console?.log "adding listeners"
 
-    # drawCard: ->
-    #   @setDefaults()
-    #   @drawCharacter(@word.char.charAt(0))
-    #   @drawAscii(@word.ascii)
-    #   @drawDefinition(@word.def)
-    #   @drawWord(@word.char)
+      @moving = false
+      @mousePos = []
+      stage = @stage
+      layer = @cardsLayer
 
-    # drawCharacter: (text) ->
-    #   c = @context
-    #   @setCanvasFont({fontSize: '200px'})
-    #   c.fillStyle = '#000000'
-    #   c.textBaseline = 'top'
-    #   c.textAlign = 'center';
-    #   c.fillText(text, @width / 2, 50);
+      stage.on "mousedown", (e) ->
+        console.log "mousedown @@@"
+        if self.moving
+          self.moving = false
+        else
+          self.mousePos = []
+          self.moving = true
 
-    # drawAscii: (text) ->
-    #   c = @context
-    #   @setCanvasFont({fontSize: '40px'})
-    #   c.fillStyle = '#666666'
-    #   c.textBaseline = 'bottom'
-    #   c.textAlign = 'center';
-    #   c.fillText(text, @width / 2, @height - 10);
+      #layer.drawScene();
+      stage.on "mousemove", (e) ->
+        if self.moving
+          self.mousePos.push stage.getMousePosition()
+          self.moving = true
 
-    # drawDefinition: (text) ->
-    #   c = @context
-    #   @setCanvasFont({fontSize: '20px'})
-    #   c.fillStyle = '#888888'
-    #   c.textBaseline = 'top'
-    #   c.textAlign = 'left';
-    #   text = text[0..20]
-    #   c.fillText(text, 20, 20, @width / 2 - 20);
 
-    # drawWord: (text) ->
-    #   c = @context
-    #   @setCanvasFont({fontSize: '20px'})
-    #   c.fillStyle = '#888888'
-    #   c.textBaseline = 'top'
-    #   c.textAlign = 'right';
-    #   dimensions = c.measureText(text)
-    #   c.fillText(text, @width - dimensions.width, 20, @width / 2)
+      #layer.drawScene();
+      stage.on "mouseup", ->
+        console.log "mouseup @@@"
+        activeCard = self.activeCard
+        mousePos = self.mousePos
+        moving = self.moving
+        layer = self.cardsLayer
+
+        console.log "moving", moving
+
+        if moving
+          moving = false
+          
+          console.log self, self.activeCard
+          # y = m (x-x1)+ y1
+          origin = # origin
+            x: self.activeCard.getX()
+            y: self.activeCard.getY()
+
+          p1 = mousePos[0] # first position of mouse drag
+          p2 = mousePos[mousePos.length - 1] # end mouse position
+          constY = (p1.y - origin.y)
+          corner = self.getCorner(mousePos)
+          if corner # third tone
+            console.log "third!"
+            m1 = (corner.y - p1.y) / (corner.x - p1.x) # gradient1
+            m2 = (p2.y - corner.y) / (p2.x - corner.x) # gradient2
+            corner1 = # point through (-200, y)
+              x: -200
+              y: m1 * (-200 - (corner.x - origin.x)) + constY
+
+            corner2 = # point through (400, y)
+              x: 400
+              y: m2 * (400 - (corner.x - origin.x)) + constY
+
+            mask1 = new K.Polygon(points: [corner1.x, corner1.y, corner.x, corner.y, corner2.x, corner2.y])
+            
+            #stroke: 'red',
+            #strokeWidth: 4
+            mask2 = new K.Polygon(
+              points: [corner.x, corner.y, corner1.x, corner1.y, corner1.x, corner1.y + 500, corner.x, corner.y + 500]
+              x: 0
+              y: 0
+            )
+            
+            #stroke: 'red',
+            #strokeWidth: 4
+            mask3 = new K.Polygon(
+              points: [corner.x, corner.y, corner2.x, corner2.y, corner2.x, corner2.y + 500, corner.x, corner.y + 500]
+              x: 0
+              y: 0
+            )
+            
+            #stroke: 'red',
+            #strokeWidth: 4
+            console.log mask1
+            layer.add mask1
+            layer.add mask2
+            layer.add mask3
+            
+            #layer.drawScene();
+            async.parallel
+              clip1: (done) =>
+                console.log "clip1.."
+                self.clip self.activeCard, mask1, done
+
+              clip2: (done) =>
+                self.clip self.activeCard, mask2, done
+
+              clip3: (done) =>
+                self.clip self.activeCard, mask3, done
+            , (err, results) ->
+              console.log "clips", results
+              clip1 = results.clip1
+              clip2 = results.clip2
+              clip3 = results.clip3
+              self.flick clip1, "top"
+              self.flick clip2, "bottom", "left"
+              self.flick clip3, "bottom", "right"
+              self.activeCard.remove()
+              layer.drawScene()
+
+          else
+            m = (p2.y - p1.y) / (p2.x - p1.x) # gradient
+            if m >= 0.3
+              console.log "fourth!"
+            else if m <= -0.3
+              console.log "second!"
+            else
+              console.log "first!"
+
+            card = 
+              width: self.activeCard.getWidth()
+              height: self.activeCard.getHeight()
+            
+            #var c = m ;// constant
+            corner1 =
+              x: 0
+              y: m * (0 - (p1.x - origin.x)) + constY
+
+            corner2 =
+              x: 0 + card.width # + width
+              y: m * (card.width - (p1.x - origin.x)) + constY
+
+            mask1 = new K.Polygon(
+              points: [corner1.x, corner1.y, 0, 0, card.width, 0, corner2.x, corner2.y]
+              x: 0
+              y: 0
+              stroke: 'red'
+              strokeWidth: 5
+            )
+            mask2 = new K.Polygon(
+              points: [corner1.x, corner1.y, 0, card.height, card.width, card.height, corner2.x, corner2.y]
+              x: 0
+              y: 0
+              stroke: 'red'
+              strokeWidth: 5
+            )
+            layer.add mask1
+            layer.add mask2
+            async.parallel
+              clip1: (done) =>
+                self.clip self.activeCard, mask1, done
+
+              clip2: (done) =>
+                self.clip self.activeCard, mask2, done
+            , (err, results) ->
+              console.log "clips", results
+              clip1 = results.clip1
+              clip2 = results.clip2
+              self.flick clip1, "top"
+              self.flick clip2, "bottom"
+              self.activeCard.remove()
+              layer.drawScene()
+
+        moving = false
+
+    getCorner: (points) ->
+      layer = self.cardsLayer
+      ms = []
+      corners = []
+      startPoint = points[0]
+      endPoint = points[points.length - 1]
+      
+      # get the gradient between every two points
+      i = 3
+
+      while i < points.length - 3
+        xdif = (points[i + 1].x - points[i].x)
+        ms.push (points[i + 1].y - points[i].y) / ((if xdif is 0 then 0.000001 else xdif))
+        console.log ms[ms.length - 1], ms[ms.length - 2]
+        if i > 0 and i < points.length - 1
+          lastGradient = ms[ms.length - 1]
+          prevGradient = ms[ms.length - 1]
+          point = new Kinetic.Circle(
+            x: points[i].x
+            y: points[i].y
+            radius: 5
+            stroke: (if lastGradient >= 0 then "blue" else "green")
+            strokeWidth: 1
+          )
+          layer.add point
+          layer.drawScene()
+          corners.push i  if lastGradient <= 0.3 and prevGradient >= -0.3
+        i++
+      
+      # take the corner closest to the middle of all the points \:D/
+      mid = points.length / 2
+      closest = 0
+      i = 0
+      while i < corners.length
+        closest = i  if Math.abs(corners[closest] - mid) > Math.abs(corners[i] - mid)
+        i++
+      if corners.length > 0
+        corner = points[corners[closest]]
+        xdif1 = (corner.x - points[0].x)
+        m1 = (corner.y - points[0].y) / ((if xdif1 is 0 then 0.000001 else xdif1))
+        xdif2 = (corner.x - points[points.length - 1].x)
+        m2 = (corner.y - points[points.length - 1].y) / ((if xdif2 is 0 then 0.000001 else xdif2))
+        if m1 >= 0.3 and m2 <= -0.3
+          point = new Kinetic.Circle(
+            x: points[corners[closest]].x
+            y: points[corners[closest]].y
+            radius: 10
+            stroke: "red"
+            strokeWidth: 5
+          )
+          layer.add point
+          return corner
+      false
+
+
+    selectTone: ->
+      difX = mousePos2.x - mousePos1.x
+      difY = mousePos2.y - mousePos1.y
+
+      if Math.abs(mousePosMax.difY) <= Math.abs(difY) + 10
+        if difY > 50 and difX > 50
+          console.log "fourth!"
+          return '4'
+        if difY < -50 and difX > 50
+          console.log "second!"
+          return '2'
+      if difX > 50 or difX < -50
+        if mousePosMax.difY > 20 and mousePosMax.y - mousePos2.y > 20
+          console.log "third!"
+          return '3'
+        else
+          console.log "first!"
+          return '1'
+      return '5'
+
+    #clip: ->
+      # check out http://jsfiddle.net/8gvG4/
+      # also see http://jsfiddle.net/y2XaD/1/
+      # and http://jsfiddle.net/9GqhS/
+      # and... http://jsfiddle.net/NAfZa/3/
+
+
+
