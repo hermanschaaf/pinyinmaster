@@ -7,35 +7,35 @@ define [
 
   # static vars (to be loaded with ajax/json)
   words = [
-    char: '你'
-    piny: 'nǐ' 
-    ascii: 'ni'
-    ans: '3'
-    def: 'you'
-  ,
-    char: '是'
-    piny: 'shì'
-    ascii: 'shi'
-    ans: '4'
-    def: 'is, to be'
-  ,
-    char: '他'
-    piny: 'tā'
-    ascii: 'ta'
-    ans: '1'
-    def: 'him, he'
-  ,
+  #   char: '你'
+  #   piny: 'nǐ' 
+  #   ascii: 'ni'
+  #   ans: '3'
+  #   def: 'you'
+  # ,
+  #   char: '是'
+  #   piny: 'shì'
+  #   ascii: 'shi'
+  #   ans: '4'
+  #   def: 'is, to be'
+  # ,
+  #   char: '他'
+  #   piny: 'tā'
+  #   ascii: 'ta'
+  #   ans: '1'
+  #   def: 'him, he'
+  # ,
     char: '狗肉'
     piny: 'gǒu ròu'
     ascii: 'gou rou'
     ans: '34'
     def: 'dog meat, something very stinky or repulsive'
   ,
-    char: '否'
-    piny: 'fǒu'
-    ascii: 'fou'
-    ans: '3'
-    def: 'otherwise, or else'
+    char: '否則'
+    piny: 'fǒu zé'
+    ascii: 'fou ze'
+    ans: '32'
+    def: 'if not, otherwise, else, or else'
   ]
 
   lightenDarkenColor = (col, amt) ->
@@ -76,6 +76,9 @@ define [
       @score = 1
       @combo = 1
 
+      @lastDrawnWord = false;
+      @currentSyllable = 0;
+
       @scoreText = false;
 
       @moving = false
@@ -108,13 +111,12 @@ define [
       @startListeners()
 
     drawScores: (layer) ->
-      layer.removeChildren()
       if not @scoreText
         @scoreText = new K.Text
           x: @w * 0.05
           y: @h * 0.05
           text: @score
-          fontSize: @h * 0.1
+          fontSize: @h * 0.06
           fontFamily: 'karatemedium'
           fill: 'white'
           align: 'left'
@@ -130,9 +132,27 @@ define [
 
     getCard: ({name, draggable, word}) ->
       draggable ?= false
-      word ?= words[parseInt(Math.floor(Math.random() * words.length))]
 
-      console.log word, draggable
+      pickNewWord = =>
+        return words[parseInt(Math.floor(Math.random() * words.length))]
+
+      word ?= {}
+      if @lastDrawnWord
+        console.log "has lastDrawnWord somehow...", @lastDrawnWord
+        numSyllables = @lastDrawnWord.ascii.split(" ").length # number of syllables in current word 
+        if @currentSyllable < numSyllables - 1 # have we shown all parts of the word yet?
+          @currentSyllable += 1
+          word = @lastDrawnWord
+        else
+          word = pickNewWord()
+          @currentSyllable = 0
+      else
+        console.log "pick new word.."
+        word = pickNewWord()
+
+      @lastDrawnWord = word
+
+      console.log "word is", word, draggable
 
       card = new K.Group(
         draggable: draggable
@@ -165,7 +185,7 @@ define [
       char = new K.Text
         y: top * @h + 0.15 * width * @w
         x: center * @w - (0.3 * @w)
-        text: word.char
+        text: word.char.charAt(@currentSyllable)
         fontSize: 0.75 * width * @w # 3/4 of card
         fontFamily: 'arial'
         fill: @blackText
@@ -173,18 +193,29 @@ define [
         width: 0.75 * width * @w  # 3/4 of card width
         padding:  0 # 0.25 * width * @w # 25 % of card
 
-      console.log 'no padding 3'
+      ascii = []
+      ascii_words = word.ascii.split(" ")
+      totalAsciiWidth = 0
+      for w in [0...ascii_words.length]
+        console.log word, ascii_words[w]
+        ascii_word = new K.Text
+          y: top * @h + 0.82 * width * @w
+          x: (0.5 + randX * 0.05) * @w + totalAsciiWidth
+          text: if @currentSyllable > w then word.piny.split(" ")[w] else ascii_words[w]
+          fontSize: 0.15 * width * @w
+          fontFamily: 'arial'
+          fontStyle: if @currentSyllable == w then 'bold' else 'normal'
+          fill: if @currentSyllable == w then '#0000ff' else @grayText
+          align: 'center'
+          padding: 0
+        totalAsciiWidth += ascii_word.getWidth()
+        ascii.push(ascii_word)
 
-      ascii = new K.Text
-        y: top * @h + 0.82 * width * @w
-        x: (0.5 + randX * 0.05) * @w - (0.3 * @w)
-        text: word.ascii
-        fontSize: 0.15 * width * @w
-        fontFamily: 'arial'
-        fill: @grayText
-        align: 'center'
-        width: 0.6 * @w
-        padding: 0
+      # now the words are off-center...
+      for w in [0...ascii.length]
+        ascii[w].setX(ascii[w].getX() + (0.5 * width) - totalAsciiWidth / 2)
+
+      # console.log("here")
 
       def = new K.Text
         y: top * @h
@@ -209,9 +240,11 @@ define [
         padding: 0.05 * width * @w
 
       card.word = word
+      card.syllable = @currentSyllable
       card.add(paper)
       card.add(char)
-      card.add(ascii)
+      for a in [0...ascii.length]
+        card.add(ascii[a])
       card.add(def)
       card.add(fullWord)
       card.getX = => (left * @w)
@@ -235,31 +268,22 @@ define [
     removeCard: (card) ->
       card.remove()
 
-    checkAnswer: (tone, word, points) ->
+    checkAnswer: (tone, word, syllable, points) ->
       console.log "checkAnswer", tone, word.ans
-      if tone == word.ans.charAt(0)
-        @score += 1 * parseInt(Math.max(@combo / 2, 1))
+      console.log word.ans, word.syllable
+      if tone == word.ans.charAt(syllable)
+        @score += 10 + @combo - 1
         @combo += 1
+        if @combo % 5 == 0
+          @score += @combo
+        @drawJiayou(word.ans.charAt(syllable), true, points)
         @drawScores(@scoreLayer)
-        @drawJiayou(word.ans.charAt(0), true, points)
-        console.log @score
         return true
       else
         @combo = 1
-        @shakeCard()
-        @drawJiayou(word.ans.charAt(0), false, points)
-
+        @drawJiayou(word.ans.charAt(syllable), false, points)
       return false
         # @drawJiayou(tone, false, points)
-
-    shakeCard: ->
-      amplitude = @h * 0.05
-      period = 200
-      anim = new K.Animation (frame) -> 
-        @activeCard.setX(amplitude * Math.sin(frame.time * 2 * Math.PI / period) + @activeCard.getX())
-        if frame.time > 300
-          anim.stop()
-      , @cardsLayer
 
     drawJiayou: (tone, correct, points) ->
       congrats = [
@@ -281,6 +305,16 @@ define [
       combos = [
         text: 'combo!'
         fill: '#00d66a'
+      ,
+        text: 'epic!'
+        fill: '#00d66a'
+      ,
+        text: 'amazing!'
+        fill: '#00d66a'
+      ,
+        text: 'on fire!!'
+        fill: '#00d66a'
+      ,
       ]
 
       cong = congrats[parseInt(Math.floor(Math.random() * congrats.length))]
@@ -297,7 +331,7 @@ define [
       ,
         # right text
         top : @h * (0.2 + 0.7 * Math.random())
-        left : @w * 0.92
+        left : @w * 0.82
       ]
       position = positions[parseInt(Math.floor(Math.random() * positions.length))]
 
@@ -343,6 +377,49 @@ define [
         for i in [0...jiayouStars.length]
           jiayou.add(jiayouStars[i])
 
+        comboText = false
+        if @combo % 5 == 0
+          comboText = new K.Group()
+          l = Math.max(10, positions[0].left - 200 * Math.random()) # always show bottom position
+          comboWord = new K.Text
+            x: l 
+            y: positions[0].top - 20
+            offset: [120, 30]
+            text: combos[@combo % combos.length].text
+            fill: cong.fill
+            fontSize: @h * 0.06,
+            fontFamily: 'Calibri',
+            fontStyle: 'bold italic',
+            width: 380,
+            padding: 0,
+            align: 'center',
+            shadowColor: 'black',
+            shadowBlur: 2,
+            shadowOffset: 4,
+            shadowOpacity: 0.3
+            scale: {x:1, y:1}
+          comboNumber = new K.Text
+            x: l - 5
+            y: positions[0].top - 20
+            offset: [120, 0]
+            text: "+#{@combo}"
+            fill: cong.fill
+            fontSize: @h * 0.08,
+            fontFamily: 'Arial',
+            fontStyle: 'bold',
+            width: 380,
+            padding: 0,
+            align: 'center',
+            shadowColor: 'black',
+            shadowBlur: 2,
+            shadowOffset: 4,
+            shadowOpacity: 0.3
+            scale: {x:1, y:1}
+          comboText.add(comboWord)
+          comboText.add(comboNumber)
+          comboText.setOffset([0, @h * 0.1])
+
+
       # draw slash made by mouse
       newPoints = $.extend(true, [], points);
       console.log "newpoints", newPoints
@@ -369,7 +446,23 @@ define [
       if correct # only do this if correct
         @scoreLayer.add(jiayou)
         @scoreLayer.add(jiayouText)
+        if comboText
+          @scoreLayer.add(comboText)
+          comboText.transitionTo
+            scale: { x:1.4, y:1.4 }
+            opacity: 0.1
+            duration: 1.5
+            callback: =>
+              comboText.remove()
+
         @scoreLayer.drawScene()
+
+        jiayou.transitionTo
+          scale: { x:0.9, y:0.9 }
+          opacity: 0.1
+          duration: 0.7
+          callback: =>
+            jiayou.remove()
 
         jiayouText.transitionTo
           scale: { x:1.5, y:1.5 }
@@ -377,8 +470,6 @@ define [
           duration: 0.7
           callback: =>
             jiayouText.remove()
-            jiayou.remove()
-        
 
     drawActiveCard: (layer) ->
       @activeCard = @cards.shift()
@@ -433,6 +524,7 @@ define [
         x: shape.getX() + 100 + Math.random() * 100 + sideWays * Math.random() * 1000
         y: (if (direction is "top") then -500 - Math.max(shape.getWidth(), shape.getHeight()) * 1.41 else self.h + 100)
         rotation: Math.random() * 2
+        opacity: 0.0
         duration: 1
 
 
@@ -445,8 +537,6 @@ define [
       layer = @cardsLayer
 
       stage.on "mousedown", (e) ->
-        self.scoreText.setText("mousedown" + self.moving)
-        self.scoreLayer.drawScene()
         console.log "mousedown @@@"
         if self.moving
           self.moving = true
@@ -465,8 +555,6 @@ define [
       #layer.drawScene();
       stage.on "mouseup", ->
         ans = '5'
-        self.scoreText.setText("mouseup" + self.moving)
-        self.scoreLayer.drawScene()
         console.log "mouseup @@@"
         activeCard = self.activeCard
         mousePos = self.mousePos
@@ -483,7 +571,7 @@ define [
 
         console.log "moving", moving
 
-        if moving
+        if moving and mousePos.length > 3
           self.moving = false
           
           console.log self, self.activeCard
@@ -498,7 +586,7 @@ define [
           corner = self.getCorner(mousePos)
           if corner # third tone
             ans = '3'
-            correct = self.checkAnswer(ans, self.activeCard.word, [p1, corner, p2])
+            correct = self.checkAnswer(ans, self.activeCard.word, self.activeCard.syllable, [p1, corner, p2])
             console.log "CORRECT? ", correct
 
             if correct # if not correct, we won't do anything (shake is called by checkAnswer)
@@ -567,7 +655,7 @@ define [
             else
               ans = '1'
 
-            correct = self.checkAnswer(ans, self.activeCard.word, [p1, p2])
+            correct = self.checkAnswer(ans, self.activeCard.word, self.activeCard.syllable, [p1, p2])
             console.log "CORRECT? ", correct
 
             if correct # if not correct, we won't do anything (shake is called by checkAnswer)
